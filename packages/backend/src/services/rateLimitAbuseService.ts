@@ -1,4 +1,3 @@
-import { getRateLimitSnapshot } from './metrics';
 import { rateLimitBlockedCounter } from '../monitoring/rateLimitMetrics';
 
 export interface AbuseRecord {
@@ -43,16 +42,15 @@ class RateLimitAbuseService {
   }
 
   getSummary(): RateLimitAbuseSummary {
-    const snapshot = getRateLimitSnapshot();
     let totalBlocked = 0;
-
-    for (const item of snapshot) {
-      totalBlocked += item.blocked;
-    }
 
     const abusers = Array.from(this.abuseMap.values()).sort(
       (a, b) => b.blockedCount - a.blockedCount
     );
+
+    for (const item of abusers) {
+      totalBlocked += item.blockedCount;
+    }
 
     return {
       totalBlocked,
