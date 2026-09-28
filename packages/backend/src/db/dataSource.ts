@@ -46,6 +46,7 @@ import { CorporateUser } from "./entities/CorporateUser";
 import { CorporateBookingPolicy } from "./entities/CorporateBookingPolicy";
 import { BookingApproval } from "./entities/BookingApproval";
 import { AncillaryPurchase } from "./entities/AncillaryPurchase";
+import { WebhookEvent } from "./entities/WebhookEvent";
 
 const isTest = process.env.NODE_ENV === "test";
 
@@ -101,6 +102,7 @@ export const AppDataSource = new DataSource(
         CorporateBookingPolicy,
         BookingApproval,
         AncillaryPurchase,
+        WebhookEvent,
       ],
       logging: false,
     }
@@ -154,6 +156,7 @@ export const AppDataSource = new DataSource(
         CorporateBookingPolicy,
         BookingApproval,
         AncillaryPurchase,
+        WebhookEvent,
       ],
       migrations: [__dirname + "/migrations/*.{js,ts}"],
       ssl:
