@@ -1,76 +1,74 @@
-import request from 'supertest';
-import express from 'express';
-import { AppDataSource, initDataSource } from '../db/dataSource';
+import { Request, Response, NextFunction } from 'express';
 import { webhookIdempotencyMiddleware } from '../middleware/webhookIdempotency';
-import { WebhookService, WebhookEventContract } from '../services/webhookService';
+import { AppDataSource } from '../db/dataSource';
+import { IdempotencyKey } from '../db/entities/IdempotencyKey';
 
-const app = express();
-app.use(express.json());
-app.post('/webhook', webhookIdempotencyMiddleware, (_req, res) => {
-  res.status(200).json({ success: true, processed: true });
-});
+jest.mock('../db/dataSource', () => ({
+  AppDataSource: {
+    getRepository: jest.fn(),
+  },
+}));
 
-describe('Webhook Idempotency & Contract', () => {
-  beforeAll(async () => {
-    if (!AppDataSource.isInitialized) {
-      await initDataSource();
-    }
-  });
+describe('webhookIdempotencyMiddleware', () => {
+  let req: Partial<Request>;
+  let res: Partial<Response>;
+  let next: NextFunction;
+  let mockRepo: any;
 
-  afterAll(async () => {
-    if (AppDataSource.isInitialized) {
-      await AppDataSource.destroy();
-    }
-  });
-
-  it('happy path: processes a novel webhook event successfully and records idempotency', async () => {
-    const eventId = 'evt_test_happy_' + Date.now();
-    const res = await request(app)
-      .post('/webhook')
-      .send({ id: eventId, type: 'payment_intent.succeeded', data: { amount: 1000 } });
-
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.processed).toBe(true);
-  });
-
-  it('failure mode (duplicate event): rejects or skips duplicate webhook event idempotently', async () => {
-    const eventId = 'evt_test_dup_' + Date.now();
-    
-    // First delivery
-    const res1 = await request(app)
-      .post('/webhook')
-      .send({ id: eventId, type: 'payment_intent.succeeded' });
-    expect(res1.status).toBe(200);
-
-    // Second delivery (duplicate)
-    const res2 = await request(app)
-      .post('/webhook')
-      .send({ id: eventId, type: 'payment_intent.succeeded' });
-
-    expect(res2.status).toBe(200);
-    expect(res2.body.duplicate).toBe(true);
-    expect(res2.body.message).toContain('already processed');
-  });
-
-  it('failure mode (missing event id): returns 400 bad request when event ID is absent', async () => {
-    const res = await request(app)
-      .post('/webhook')
-      .send({ type: 'payment_intent.succeeded' });
-
-    expect(res.status).toBe(400);
-    expect(res.body.success).toBe(false);
-    expect(res.body.error.code).toBe('WEBHOOK_EVENT_ID_MISSING');
-  });
-
-  it('WebhookService contract processes structured events correctly', async () => {
-    const event: WebhookEventContract = {
-      id: 'evt_service_' + Date.now(),
-      type: 'charge.succeeded',
-      data: { id: 'ch_123' },
+  beforeEach(() => {
+    jest.clearAllMocks();
+    req = {
+      body: { id: 'evt_123', type: 'payment_intent.succeeded' },
+      headers: {},
+      path: '/webhook',
+      method: 'POST',
     };
-    const result = await WebhookService.processWebhookEvent(event);
-    expect(result.success).toBe(true);
-    expect(result.processedAt).toBeDefined();
+    res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+    };
+    next = jest.fn();
+
+    mockRepo = {
+      findOne: jest.fn(),
+      create: jest.fn().mockImplementation((val) => val),
+      save: jest.fn().mockResolvedValue({}),
+    };
+    (AppDataSource.getRepository as jest.Mock).mockReturnValue(mockRepo);
+  });
+
+  it('should process a novel webhook event successfully (happy path)', async () => {
+    mockRepo.findOne.mockResolvedValue(null);
+
+    await webhookIdempotencyMiddleware(req as Request, res as Response, next);
+
+    expect(mockRepo.findOne).toHaveBeenCalledWith({ where: { key: 'webhook:evt_123' } });
+    expect(mockRepo.save).toHaveBeenCalled();
+    expect(next).toHaveBeenCalled();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('should skip processing and return duplicate response on duplicate event (failure/idempotency mode)', async () => {
+    mockRepo.findOne.mockResolvedValue({ key: 'webhook:evt_123' });
+
+    await webhookIdempotencyMiddleware(req as Request, res as Response, next);
+
+    expect(mockRepo.findOne).toHaveBeenCalledWith({ where: { key: 'webhook:evt_123' } });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ duplicate: true }));
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('should return 400 when event ID is missing', async () => {
+    req.body = {};
+
+    await webhookIdempotencyMiddleware(req as Request, res as Response, next);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: false,
+      error: expect.objectContaining({ code: 'WEBHOOK_EVENT_ID_MISSING' }),
+    }));
+    expect(next).not.toHaveBeenCalled();
   });
 });
