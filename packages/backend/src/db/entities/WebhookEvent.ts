@@ -12,6 +12,6 @@ export class WebhookEvent {
   @Column({ type: 'varchar', length: 64, default: 'processed' })
   status!: string;
 
-  @CreateDateColumn({ type: process.env.NODE_ENV === 'test' ? 'datetime' : 'timestamptz' })
+  @CreateDateColumn()
   createdAt!: Date;
 }
