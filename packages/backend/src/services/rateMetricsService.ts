@@ -1,4 +1,4 @@
-import { getRateLimitSnapshot } from './metrics';
+import { getRateLimitSnapshot } from './rateLimiter';
 
 export interface RateLimitMetricSummary {
   endpoint: string;
