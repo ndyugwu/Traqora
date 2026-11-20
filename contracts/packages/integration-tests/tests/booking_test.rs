@@ -84,6 +84,37 @@ fn test_refund_flow() {
     contracts.booking.refund_passenger(&booking_id);
 
     let booking = contracts.booking.get_booking(&booking_id).unwrap();
-    assert_eq!(booking.status, Symbol::new(&env, "refunded"));
+    assert_eq!(booking.status, symbol_short!("refunded"));
     assert_eq!(booking.amount_escrowed, 0);
+}
+
+#[test]
+#[should_panic(expected = "Already paid or cancelled")]
+fn test_payment_replay_prevention_across_bookings() {
+    let env = new_env();
+    let actors = generate_actors(&env);
+    let contracts = register_contracts(&env);
+    initialize_token(&env, &contracts.token, &actors.admin);
+
+    let price = 100_0000000i128;
+    let booking_id = contracts.booking.create_booking(
+        &actors.passenger,
+        &actors.airline,
+        &Symbol::new(&env, "FLREPLAY"),
+        &Symbol::new(&env, "JFK"),
+        &Symbol::new(&env, "LAX"),
+        &1704067200,
+        &price,
+        &contracts.token.address,
+    );
+
+    contracts
+        .token
+        .mint(&actors.admin, &actors.passenger, &(price * 2));
+    
+    // First payment succeeds
+    contracts.booking.pay_for_booking(&booking_id);
+    
+    // Second payment attempt for the same booking must fail (replay rejected)
+    contracts.booking.pay_for_booking(&booking_id);
 }

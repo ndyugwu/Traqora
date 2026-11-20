@@ -187,6 +187,10 @@ impl BookingContract {
             booking.status == symbol_short!("pending"),
             "Already paid or cancelled"
         );
+        assert!(
+            booking.amount_escrowed == 0,
+            "Payment already processed for this booking"
+        );
 
         booking.passenger.require_auth();
 
