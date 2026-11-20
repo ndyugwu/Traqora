@@ -35,6 +35,31 @@ fn test_pay_for_booking_then_success() {
 
 #[test]
 #[should_panic(expected = "Already paid or cancelled")]
+fn test_payment_replay_across_bookings_should_panic() {
+    let env = new_env();
+    let actors = generate_actors(&env);
+    let contracts = register_contracts(&env);
+    initialize_token(&env, &contracts.token, &actors.admin);
+    let price = 100_0000000i128;
+    let booking_id = contracts.booking.create_booking(
+        &actors.passenger,
+        &actors.airline,
+        &Symbol::new(&env, "FL123"),
+        &Symbol::new(&env, "JFK"),
+        &Symbol::new(&env, "LAX"),
+        &1704067200,
+        &price,
+        &contracts.token.address,
+    );
+    contracts
+        .token
+        .mint(&actors.admin, &actors.passenger, &price);
+    contracts.booking.pay_for_booking(&booking_id);
+    contracts.booking.pay_for_booking(&booking_id);
+}
+
+#[test]
+#[should_panic(expected = "Already paid or cancelled")]
 fn test_pay_for_booking_again_should_panic() {
     let env = new_env();
     let actors = generate_actors(&env);

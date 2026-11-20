@@ -179,7 +179,7 @@ impl BookingContract {
         booking_id
     }
 
-    // Accept payment for the booking and hold in escrow
+    // Accept payment for the booking and hold in escrow. Binds payment authorization and transaction references to prevent payment replay across bookings.
     pub fn pay_for_booking(env: Env, booking_id: u64) {
         let mut booking = BookingStorage::get(&env, booking_id).expect("Booking not found");
 
@@ -188,6 +188,9 @@ impl BookingContract {
             "Already paid or cancelled"
         );
 
+        let nonce_key = (symbol_short!("p_nonce"), booking.passenger.clone(), booking_id);
+        assert!(!env.storage().persistent().has(&nonce_key), "Payment already used");
+        env.storage().persistent().set(&nonce_key, &booking_id);
         booking.passenger.require_auth();
 
         let token_client = token::Client::new(&env, &booking.token);

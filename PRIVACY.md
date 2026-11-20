@@ -13,6 +13,9 @@ While using our application, we may ask you to provide us with certain personall
 - Phone number
 - Stellar wallet address
 
+### 1.2 Checkout and Passenger Data Collection
+During checkout and passenger details entry, we strictly limit data collection to what is necessary for supplier fulfillment and airline ticketing. Unrelated personal information is not collected.
+
 ### 1.2 Usage Data
 We may also collect information that your browser sends whenever you visit our service or when you access the service by or through a mobile device.
 
