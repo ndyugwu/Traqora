@@ -4,6 +4,7 @@ use soroban_sdk::{
     Address, Env, Symbol,
 };
 
+
 #[test]
 fn test_reserve_seat_happy_path() {
     let env = Env::default();
@@ -52,8 +53,6 @@ fn test_init_upgrade_owner_for_flight_booking() {
     client.init_upgrade_owner(&owner);
 }
 
-// ─── Double booking edge cases ─────────────────────────────────────────────
-
 #[test]
 fn test_double_booking_different_seat_same_flight_ok() {
     let env = Env::default();
@@ -86,10 +85,6 @@ fn test_double_booking_same_seat_different_flight_ok() {
     assert_ne!(id_a, id_b);
 }
 
-// ─── Cancelled flights ─────────────────────────────────────────────────────
-// Contract has no explicit cancellation, but state is Confirmed on creation
-// and must remain deterministic (not Cancelled/Refunded).
-
 #[test]
 fn test_cancelled_flight_state_is_confirmed_not_cancelled() {
     let env = Env::default();
@@ -121,8 +116,6 @@ fn test_cancelled_flight_seat_still_reserved() {
     assert!(res.is_err());
 }
 
-// ─── Non-existent flight ids ───────────────────────────────────────────────
-
 #[test]
 fn test_non_existent_flight_get_returns_none() {
     let env = Env::default();
@@ -148,8 +141,6 @@ fn test_non_existent_flight_reserve_succeeds_and_is_retrievable() {
     assert_eq!(booking.flight_id, unknown_flight);
     assert_eq!(booking.seat, seat);
 }
-
-// ─── Capacity overflow ─────────────────────────────────────────────────────
 
 #[test]
 #[should_panic(expected = "Invalid amount")]
@@ -260,8 +251,6 @@ fn test_capacity_overflow_many_seats_same_flight() {
     assert_eq!(client.get_booking(&10).unwrap().booking_id, 10);
 }
 
-// ─── Auth failure paths ────────────────────────────────────────────────────
-
 #[test]
 fn test_auth_failure_without_mock_all_auths() {
     let env = Env::default();
@@ -337,4 +326,26 @@ fn test_flight_booking_reconcile_reference_timeout_recovery() {
     // Retry with same request ref after timeout should return the exact same booking id without duplicate reservation error
     let id2 = client.reconcile_booking_reference(&passenger, &flight_id, &seat, &1_500, &request_ref);
     assert_eq!(id1, id2);
+}
+#[test]
+fn test_flight_booking_terms_review_normal_and_validation_paths() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register(FlightBookingContract, ());
+    let client = FlightBookingContractClient::new(&env, &contract_id);
+
+    let flight_id = Symbol::new(&env, "FL123");
+    let (fare, cancellation) = client.review_terms(&flight_id);
+    assert_eq!(fare, Symbol::new(&env, "non_ref"));
+    assert_eq!(cancellation, Symbol::new(&env, "strict"));
+
+    let passenger = Address::generate(&env);
+    let seat = Symbol::new(&env, "1A");
+    let booking_id = client.reserve_seat(&passenger, &flight_id, &seat, &1_000);
+    let booking = client.get_booking(&booking_id).unwrap();
+    assert_eq!(booking.booking_id, booking_id);
+
+    let invalid_flight = Symbol::new(&env, "INVALID");
+    let res = client.try_review_terms(&invalid_flight);
+    assert!(res.is_err());
 }

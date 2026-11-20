@@ -36,6 +36,12 @@ pub struct FlightBookingContract;
 
 #[contractimpl]
 impl FlightBookingContract {
+    pub fn review_terms(env: Env, flight_id: Symbol) -> (Symbol, Symbol) {
+        // Returns applicable (fare_terms, cancellation_terms) before payment authorization
+        assert!(flight_id != Symbol::new(&env, "INVALID"), "Invalid flight for terms review");
+        (symbol_short!("non_ref"), symbol_short!("strict"))
+    }
+
     pub fn reserve_seat(
         env: Env,
         passenger: Address,
@@ -45,6 +51,7 @@ impl FlightBookingContract {
     ) -> u64 {
         passenger.require_auth();
         assert!(amount > 0, "Invalid amount");
+        let (_fare_terms, _cancellation_terms) = Self::review_terms(env.clone(), flight_id.clone());
 
         let seat_key = (symbol_short!("seat"), flight_id.clone(), seat.clone());
         if env.storage().persistent().has(&seat_key) {
