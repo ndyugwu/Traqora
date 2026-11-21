@@ -34,7 +34,7 @@ fn test_pay_for_booking_then_success() {
 }
 
 #[test]
-#[should_panic(expected = "Already paid or cancelled")]
+#[should_panic(expected = "Payment already processed")]
 fn test_pay_for_booking_again_should_panic() {
     let env = new_env();
     let actors = generate_actors(&env);

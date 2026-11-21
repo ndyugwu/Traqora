@@ -182,6 +182,16 @@ impl BookingContract {
     // Accept payment for the booking and hold in escrow
     pub fn pay_for_booking(env: Env, booking_id: u64) {
         let mut booking = BookingStorage::get(&env, booking_id).expect("Booking not found");
+        let tx_ref_key = (
+            symbol_short!("pay_ref"),
+            booking.passenger.clone(),
+            booking_id,
+        );
+        assert!(
+            !env.storage().persistent().has(&tx_ref_key),
+            "Payment already processed"
+        );
+        env.storage().persistent().set(&tx_ref_key, &true); // bind ref
 
         assert!(
             booking.status == symbol_short!("pending"),
