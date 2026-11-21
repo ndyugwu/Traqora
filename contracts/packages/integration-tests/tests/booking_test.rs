@@ -87,3 +87,53 @@ fn test_refund_flow() {
     assert_eq!(booking.status, Symbol::new(&env, "refunded"));
     assert_eq!(booking.amount_escrowed, 0);
 }
+
+#[test]
+#[should_panic(expected = "Payment reference already used")]
+fn test_payment_replay_prevention_across_bookings() {
+    let env = new_env();
+    let actors = generate_actors(&env);
+    let contracts = register_contracts(&env);
+    initialize_token(&env, &contracts.token, &actors.admin);
+
+    let price = 100_0000000i128;
+
+    let booking_id_1 = contracts.booking.create_booking(
+        &actors.passenger,
+        &actors.airline,
+        &Symbol::new(&env, "FL123"),
+        &Symbol::new(&env, "JFK"),
+        &Symbol::new(&env, "LAX"),
+        &1704067200,
+        &price,
+        &contracts.token.address,
+    );
+
+    let booking_id_2 = contracts.booking.create_booking(
+        &actors.passenger,
+        &actors.airline,
+        &Symbol::new(&env, "FL124"),
+        &Symbol::new(&env, "JFK"),
+        &Symbol::new(&env, "LAX"),
+        &1704067200,
+        &price,
+        &contracts.token.address,
+    );
+
+    let mint_amount = price * 2;
+    contracts
+        .token
+        .mint(&actors.admin, &actors.passenger, &mint_amount);
+
+    let shared_ref = Symbol::new(&env, "tx_ref_xyz");
+
+    // First booking payment succeeds with shared reference
+    contracts
+        .booking
+        .pay_for_booking_with_ref(&booking_id_1, &shared_ref);
+
+    // Second booking payment using the same reference should panic and be rejected
+    contracts
+        .booking
+        .pay_for_booking_with_ref(&booking_id_2, &shared_ref);
+}

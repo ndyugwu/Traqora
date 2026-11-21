@@ -37,6 +37,7 @@ pub struct Booking {
     pub price: i128,
     pub token: Address,
     pub amount_escrowed: i128,
+    pub payment_reference: Option<Symbol>,
     pub status: Symbol, // "pending", "confirmed", "completed", "cancelled", "refunded"
     pub created_at: u64,
 }
@@ -155,6 +156,7 @@ impl BookingContract {
             price,
             token,
             amount_escrowed: 0,
+            payment_reference: None,
             status: symbol_short!("pending"),
             created_at: env.ledger().timestamp(),
         };
@@ -179,8 +181,42 @@ impl BookingContract {
         booking_id
     }
 
-    // Accept payment for the booking and hold in escrow
+    // Accept payment for the booking and hold in escrow with replay protection
     pub fn pay_for_booking(env: Env, booking_id: u64) {
+        Self::pay_for_booking_with_ref(env, booking_id, symbol_short!("default"))
+    }
+
+    pub fn pay_for_booking_with_ref(env: Env, booking_id: u64, payment_reference: Symbol) {
+        let mut booking = BookingStorage::get(&env, booking_id).expect("Booking not found");
+
+        assert!(
+            booking.status == symbol_short!("pending"),
+            "Already paid or cancelled"
+        );
+
+        // Check payment reference uniqueness / prevent replay across bookings
+        let payment_key = (symbol_short!("pay_ref"), payment_reference.clone());
+        if env.storage().persistent().has(&payment_key) {
+            panic!("Payment reference already used");
+        }
+
+        booking.passenger.require_auth();
+
+        let token_client = token::Client::new(&env, &booking.token);
+
+        // Transfer tokens from passenger to this contract
+        token_client.transfer(
+            &booking.passenger,
+            &env.current_contract_address(),
+            &booking.price,
+        );
+
+        booking.amount_escrowed = booking.price;
+        booking.payment_reference = Some(payment_reference.clone());
+        booking.status = symbol_short!("confirmed");
+
+        BookingStorage::set(&env, booking_id, &booking);
+        env.storage().persistent().set(&payment_key, &booking_id);
         let mut booking = BookingStorage::get(&env, booking_id).expect("Booking not found");
 
         assert!(

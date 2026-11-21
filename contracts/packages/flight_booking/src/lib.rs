@@ -20,6 +20,7 @@ pub struct Booking {
     pub seat: Symbol,
     pub amount: i128,
     pub escrowed_amount: i128,
+    pub payment_reference: Option<Symbol>,
     pub state: BookingState,
     pub created_at: u64,
 }
@@ -43,12 +44,35 @@ impl FlightBookingContract {
         seat: Symbol,
         amount: i128,
     ) -> u64 {
+        Self::reserve_seat_with_ref(
+            env,
+            passenger,
+            flight_id,
+            seat,
+            amount,
+            symbol_short!("default"),
+        )
+    }
+
+    pub fn reserve_seat_with_ref(
+        env: Env,
+        passenger: Address,
+        flight_id: Symbol,
+        seat: Symbol,
+        amount: i128,
+        payment_reference: Symbol,
+    ) -> u64 {
         passenger.require_auth();
         assert!(amount > 0, "Invalid amount");
 
         let seat_key = (symbol_short!("seat"), flight_id.clone(), seat.clone());
         if env.storage().persistent().has(&seat_key) {
             panic!("Seat already reserved");
+        }
+
+        let payment_key = (symbol_short!("pay_ref"), payment_reference.clone());
+        if env.storage().persistent().has(&payment_key) {
+            panic!("Payment reference already used");
         }
 
         let booking_id: u64 = env.storage().instance().get(&DataKey::NextId).unwrap_or(1);
@@ -61,6 +85,7 @@ impl FlightBookingContract {
             seat: seat.clone(),
             amount,
             escrowed_amount: amount,
+            payment_reference: Some(payment_reference.clone()),
             state: BookingState::Confirmed,
             created_at,
         };
@@ -69,6 +94,7 @@ impl FlightBookingContract {
             .persistent()
             .set(&DataKey::Booking(booking_id), &booking);
         env.storage().persistent().set(&seat_key, &booking_id);
+        env.storage().persistent().set(&payment_key, &booking_id);
         env.storage()
             .instance()
             .set(&DataKey::NextId, &(booking_id + 1));

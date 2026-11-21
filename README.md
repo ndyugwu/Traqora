@@ -138,6 +138,7 @@ For deployment procedures see [docs/deployment-guide.md](./docs/deployment-guide
 
 - [V1 booking detail contract](./packages/client/docs/V1_BOOKING_DETAIL_CONTRACT.md): missing, unauthorized, pending and unavailable detail states, plus supplier schedule change display.
 - [V1 cancellation eligibility rules](./packages/backend/docs/CANCELLATION_ELIGIBILITY.md): decision matrix combining platform status with supplier fare rules.
+- [V1 payment replay prevention](./packages/backend/docs/PAYMENT_REPLAY_PREVENTION.md): binding payment authorization and transaction references to a single booking to reject replay.
 
 ## Glossary
 
