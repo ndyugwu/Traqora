@@ -8,9 +8,11 @@ Traqora is designed with privacy-by-design principles to ensure compliance with 
 
 ## 2. Lawful Basis for Processing
 We process personal data under the following lawful bases:
-- **Contractual Necessity**: Processing is necessary to fulfill flight bookings.
+- **Contractual Necessity**: Processing is necessary to fulfill flight bookings and airline/supplier fulfillment.
 - **Legitimate Interests**: Security monitoring, rate limiting, and service improvement.
 - **Consent**: For optional communication (if applicable).
+
+*Privacy Notices & Scope:* Checkout and passenger details screens display explicit privacy notices explaining that passenger data is collected strictly for supplier fulfillment and ticket issuance, avoiding the collection of unrelated personal information.
 
 ## 3. Data Subject Rights
 Traqora supports the following GDPR rights:

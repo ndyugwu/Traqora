@@ -13,6 +13,8 @@ While using our application, we may ask you to provide us with certain personall
 - Phone number
 - Stellar wallet address
 
+*Note on Checkout & Passenger Details:* During checkout and passenger entry, data is collected strictly for supplier fulfillment and ticket issuance. We do not collect unrelated personal information.
+
 ### 1.2 Usage Data
 We may also collect information that your browser sends whenever you visit our service or when you access the service by or through a mobile device.
 
