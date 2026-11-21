@@ -180,7 +180,13 @@ impl BookingContract {
     }
 
     // Accept payment for the booking and hold in escrow
-    pub fn pay_for_booking(env: Env, booking_id: u64) {
+    pub fn pay_for_booking(env: Env, booking_id: u64, payment_auth_ref: Symbol) {
+        let payment_key = (symbol_short!("pay_ref"), payment_auth_ref);
+        if env.storage().persistent().has(&payment_key) {
+            errors::panic_with_error!(&env, errors::ContractError::PaymentReplay);
+        }
+        env.storage().persistent().set(&payment_key, &booking_id);
+
         let mut booking = BookingStorage::get(&env, booking_id).expect("Booking not found");
 
         assert!(

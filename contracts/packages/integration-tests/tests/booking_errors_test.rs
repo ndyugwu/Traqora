@@ -59,6 +59,46 @@ fn test_pay_for_booking_again_should_panic() {
 }
 
 #[test]
+#[should_panic(expected = "Payment replay")]
+fn test_payment_replay_prevention_across_different_bookings_or_replay() {
+    let env = new_env();
+    let actors = generate_actors(&env);
+    let contracts = register_contracts(&env);
+    initialize_token(&env, &contracts.token, &actors.admin);
+    let price = 100_0000000i128;
+
+    let _booking_id_1 = contracts.booking.create_booking(
+        &actors.passenger,
+        &actors.airline,
+        &Symbol::new(&env, "FL123"),
+        &Symbol::new(&env, "JFK"),
+        &Symbol::new(&env, "LAX"),
+        &1704067200,
+        &price,
+        &contracts.token.address,
+    );
+    let booking_id_2 = contracts.booking.create_booking(
+        &actors.passenger,
+        &actors.airline,
+        &Symbol::new(&env, "FL124"),
+        &Symbol::new(&env, "JFK"),
+        &Symbol::new(&env, "LAX"),
+        &1704067200,
+        &price,
+        &contracts.token.address,
+    );
+    contracts
+        .token
+        .mint(&actors.admin, &actors.passenger, &(price * 2));
+
+    // Pay for booking 2 normally
+    contracts.booking.pay_for_booking(&booking_id_2);
+
+    // Attempting to replay payment reference for booking 2 or re-using payment state must fail with PaymentReplay error
+    contracts.booking.pay_for_booking(&booking_id_2);
+}
+
+#[test]
 #[should_panic(expected = "Booking not found")]
 fn test_pay_for_booking_nonexistent_should_panic() {
     let env = new_env();
