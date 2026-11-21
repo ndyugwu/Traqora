@@ -13,6 +13,8 @@ While using our application, we may ask you to provide us with certain personall
 - Phone number
 - Stellar wallet address
 
+*Note on Checkout Data*: Passenger data collected during checkout (such as full name and contact details) is used strictly for flight booking and supplier fulfillment. We do not collect unrelated personal information (such as social security numbers or credit scores).
+
 ### 1.2 Usage Data
 We may also collect information that your browser sends whenever you visit our service or when you access the service by or through a mobile device.
 

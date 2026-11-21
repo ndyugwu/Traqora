@@ -59,6 +59,42 @@ fn test_pay_for_booking_again_should_panic() {
 }
 
 #[test]
+#[should_panic(expected = "Already paid or cancelled")]
+fn test_payment_replay_across_bookings_should_panic() {
+    let env = new_env();
+    let actors = generate_actors(&env);
+    let contracts = register_contracts(&env);
+    initialize_token(&env, &contracts.token, &actors.admin);
+    let price = 100_0000000i128;
+    let booking_id_1 = contracts.booking.create_booking(
+        &actors.passenger,
+        &actors.airline,
+        &Symbol::new(&env, "FL123"),
+        &Symbol::new(&env, "JFK"),
+        &Symbol::new(&env, "LAX"),
+        &1704067200,
+        &price,
+        &contracts.token.address,
+    );
+    let booking_id_2 = contracts.booking.create_booking(
+        &actors.passenger,
+        &actors.airline,
+        &Symbol::new(&env, "FL124"),
+        &Symbol::new(&env, "JFK"),
+        &Symbol::new(&env, "LAX"),
+        &1704067200,
+        &price,
+        &contracts.token.address,
+    );
+    contracts
+        .token
+        .mint(&actors.admin, &actors.passenger, &(price * 2));
+    contracts.booking.pay_for_booking(&booking_id_1);
+    // Attempting to reuse the payment authorization/reference or replay for booking 2 when already bound/paid
+    contracts.booking.pay_for_booking(&booking_id_2);
+}
+
+#[test]
 #[should_panic(expected = "Booking not found")]
 fn test_pay_for_booking_nonexistent_should_panic() {
     let env = new_env();

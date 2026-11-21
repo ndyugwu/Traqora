@@ -181,6 +181,21 @@ impl BookingContract {
 
     // Accept payment for the booking and hold in escrow
     pub fn pay_for_booking(env: Env, booking_id: u64) {
+        let mut booking = Self::get_booking(env.clone(), booking_id);
+        if booking.status != Symbol::new(&env, "pending") {
+            panic!("Already paid or cancelled");
+        }
+
+        // Check if this payment authorization / token transfer reference was already used
+        let payment_ref_key = (
+            Symbol::new(&env, "pay_ref"),
+            booking.passenger.clone(),
+            booking_id,
+        );
+        if env.storage().persistent().has(&payment_ref_key) {
+            panic!("Payment already processed for this booking or reference");
+        }
+        env.storage().persistent().set(&payment_ref_key, &true);
         let mut booking = BookingStorage::get(&env, booking_id).expect("Booking not found");
 
         assert!(
